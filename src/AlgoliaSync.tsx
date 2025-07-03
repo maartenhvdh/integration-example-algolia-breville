@@ -34,7 +34,9 @@ export const AlgoliaSync: FC<Props> = props => {
     fetch(initFunctionUrl, { method: "POST", body })
       .then(() => {
         setSynchronizationStatus(SynchronizationStatus.Successful);
-        props.onSyncDone();
+        if (typeof props.onSyncDone === 'function') {
+          props.onSyncDone();
+        }
       })
       .catch(e => {
         console.error("Failed to synchronize content, error: ", e);
