@@ -21,8 +21,22 @@ import { serializeUncaughtErrorsHandler } from "./utils/serializeUncaughtErrorsH
 const { envVars, missingEnvVars } = createEnvVars(["ALGOLIA_API_KEY"] as const);
 
 export const handler: Handler = serializeUncaughtErrorsHandler(async (event) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: corsHeaders,
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return { statusCode: 405, body: "Method Not Allowed", headers: corsHeaders };
   }
 
   const body = JSON.parse(event.body || "null");
@@ -32,12 +46,14 @@ export const handler: Handler = serializeUncaughtErrorsHandler(async (event) => 
       body: `Missing or invalid body, the following properties are missing or invalid: ${
         findMissingInitRequestBodyProps(body).join(", ")
       }`,
+      headers: corsHeaders,
     };
   }
   if (!envVars.ALGOLIA_API_KEY) {
     return {
       statusCode: 500,
       body: `${missingEnvVars.join(", ")} environment variable(s) are missing, please check the documentation`,
+      headers: corsHeaders,
     };
   }
 
@@ -60,6 +76,7 @@ export const handler: Handler = serializeUncaughtErrorsHandler(async (event) => 
   return {
     statusCode: 200,
     body: JSON.stringify(result.objectIDs),
+    headers: corsHeaders,
   };
 });
 

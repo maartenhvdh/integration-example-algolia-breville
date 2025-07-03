@@ -20,18 +20,33 @@ const { envVars, missingEnvVars } = createEnvVars(["KONTENT_SECRET", "ALGOLIA_AP
 const signatureHeaderName = "x-kontent-ai-signature";
 
 export const handler: Handler = serializeUncaughtErrorsHandler(async (event) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: corsHeaders,
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return { statusCode: 405, body: "Method Not Allowed", headers: corsHeaders };
   }
 
   if (!event.body) {
-    return { statusCode: 400, body: "Missing Data" };
+    return { statusCode: 400, body: "Missing Data", headers: corsHeaders };
   }
 
   if (!envVars.KONTENT_SECRET || !envVars.ALGOLIA_API_KEY) {
     return {
       statusCode: 500,
       body: `${missingEnvVars.join(", ")} environment variables are missing, please check the documentation`,
+      headers: corsHeaders,
     };
   }
 
@@ -45,14 +60,14 @@ export const handler: Handler = serializeUncaughtErrorsHandler(async (event) => 
       event.headers[signatureHeaderName],
     )
   ) {
-    return { statusCode: 401, body: "Unauthorized" };
+    return { statusCode: 401, body: "Unauthorized", headers: corsHeaders };
   }
 
   const webhookData: WebhookResponse = JSON.parse(event.body);
 
   const queryParams = event.queryStringParameters;
   if (!areValidQueryParams(queryParams)) {
-    return { statusCode: 400, body: "Missing some query parameters, please check the documentation" };
+    return { statusCode: 400, body: "Missing some query parameters, please check the documentation", headers: corsHeaders };
   }
 
   const algoliaClient = createAlgoliaClient(queryParams.appId, envVars.ALGOLIA_API_KEY, { userAgent: customUserAgent });
@@ -93,7 +108,7 @@ export const handler: Handler = serializeUncaughtErrorsHandler(async (event) => 
       deletedObjectIds: deletedResponse?.objectIDs ?? [],
       reIndexedObjectIds: reIndexResponse?.objectIDs ?? [],
     }),
-    contentType: "application/json",
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   };
 });
 
